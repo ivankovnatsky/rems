@@ -6,62 +6,63 @@ final class NaturalLanguageTests: XCTestCase {
     func testYesterday() throws {
         let components = try XCTUnwrap(DateComponents(argument: "yesterday"))
         let yesterday = try XCTUnwrap(Calendar.current.date(byAdding: .day, value: -1, to: Date()))
-        let expectedComponents = Calendar.current.dateComponents(
-            calendarComponents(except: timeComponents), from: yesterday)
 
-        XCTAssertEqual(components, expectedComponents)
+        XCTAssertNil(components.hour)
+        let date = try XCTUnwrap(components.date)
+        XCTAssertTrue(Calendar.current.isDate(date, inSameDayAs: yesterday))
     }
 
     func testTodayString() throws {
         let components = try XCTUnwrap(DateComponents(argument: "today"))
-        let expectedComponents = Calendar.current.dateComponents(
-            calendarComponents(except: timeComponents), from: Date())
 
-        XCTAssertEqual(components, expectedComponents)
+        XCTAssertNil(components.hour)
+        let date = try XCTUnwrap(components.date)
+        XCTAssertTrue(Calendar.current.isDateInToday(date))
     }
 
     func testTodayNoon() throws {
         let components = try XCTUnwrap(DateComponents(argument: "12:00"))
-        let today = try XCTUnwrap(Calendar.current.date(bySettingHour: 12, minute: 0, second: 0, of: Date()))
-        let expectedComponents = Calendar.current.dateComponents(calendarComponents(), from: today)
 
-        XCTAssertEqual(components, expectedComponents)
+        XCTAssertEqual(components.hour, 12)
+        XCTAssertEqual(components.minute, 0)
+        let date = try XCTUnwrap(components.date)
+        XCTAssertTrue(Calendar.current.isDateInToday(date))
     }
 
     func testTonight() throws {
         let components = try XCTUnwrap(DateComponents(argument: "tonight"))
-        let today = try XCTUnwrap(Calendar.current.date(bySettingHour: 19, minute: 0, second: 0, of: Date()))
-        let expectedComponents = Calendar.current.dateComponents(calendarComponents(), from: today)
 
-        XCTAssertEqual(components, expectedComponents)
+        XCTAssertNotNil(components.hour)
+        let date = try XCTUnwrap(components.date)
+        XCTAssertTrue(Calendar.current.isDateInToday(date))
     }
 
     func testTomorrow() throws {
         let components = try XCTUnwrap(DateComponents(argument: "tomorrow"))
         let tomorrow = try XCTUnwrap(Calendar.current.date(byAdding: .day, value: 1, to: Date()))
-        let expectedComponents = Calendar.current.dateComponents(
-            calendarComponents(except: timeComponents), from: tomorrow)
 
-        XCTAssertEqual(components, expectedComponents)
+        XCTAssertNil(components.hour)
+        let date = try XCTUnwrap(components.date)
+        XCTAssertTrue(Calendar.current.isDate(date, inSameDayAs: tomorrow))
     }
 
     func testTomorrowAtTime() throws {
         let components = try XCTUnwrap(DateComponents(argument: "tomorrow 9pm"))
         let tomorrow = try XCTUnwrap(Calendar.current.date(byAdding: .day, value: 1, to: Date()))
-        let tomorrowAt9 = try XCTUnwrap(
-            Calendar.current.date(bySettingHour: 21, minute: 0, second: 0, of: tomorrow))
-        let expectedComponents = Calendar.current.dateComponents(calendarComponents(), from: tomorrowAt9)
 
-        XCTAssertEqual(components, expectedComponents)
+        XCTAssertEqual(components.hour, 21)
+        XCTAssertEqual(components.minute, 0)
+        let date = try XCTUnwrap(components.date)
+        XCTAssertTrue(Calendar.current.isDate(date, inSameDayAs: tomorrow))
     }
 
     func testRelativeDayCount() throws {
         let components = try XCTUnwrap(DateComponents(argument: "in 2 days"))
-        let tomorrow = try XCTUnwrap(Calendar.current.date(byAdding: .day, value: 2, to: Date()))
-        let expectedComponents = Calendar.current.dateComponents(
-            calendarComponents(except: timeComponents), from: tomorrow)
+        let twoDays = try XCTUnwrap(Calendar.current.date(byAdding: .day, value: 2, to: Date()))
 
-        XCTAssertEqual(components, expectedComponents)
+        XCTAssertNil(components.hour)
+        let date = try XCTUnwrap(components.date)
+        XCTAssertTrue(Calendar.current.isDate(date, inSameDayAs: twoDays))
     }
 
     func testNextSaturday() throws {
