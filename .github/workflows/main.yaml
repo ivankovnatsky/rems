@@ -1,0 +1,28 @@
+name: Swift
+
+"on":
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: swift build -c release -Xswiftc -warnings-as-errors
+      - name: Test
+        run: swift test -Xswiftc -warnings-as-errors
+      - name: Codesign
+        run: codesign --force --sign - .build/release/rems
+      - name: Upload artifact
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rems-aarch64-apple-darwin
+          path: .build/release/rems
