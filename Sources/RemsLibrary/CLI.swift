@@ -476,8 +476,12 @@ private struct DeleteList: ParsableCommand {
         help: "Skip confirmation prompt")
     var force = false
 
+    @Flag(
+        help: "Delete the list even if it has items")
+    var deleteItems = false
+
     func run() {
-        reminders.deleteList(withName: self.listName, force: self.force)
+        reminders.deleteList(withName: self.listName, force: self.force, deleteItems: self.deleteItems)
     }
 }
 

@@ -220,16 +220,16 @@ public final class Reminders {
         semaphore.wait()
     }
 
-    func deleteList(withName name: String, force: Bool = false) {
+    func deleteList(withName name: String, force: Bool = false, deleteItems: Bool = false) {
         let calendar = self.calendar(withName: name)
         let semaphore = DispatchSemaphore(value: 0)
 
         self.reminders(on: [calendar], displayOptions: .all) { reminders in
-            if !reminders.isEmpty {
+            if !reminders.isEmpty && !deleteItems {
                 let completed = reminders.filter { $0.isCompleted }.count
                 let incomplete = reminders.count - completed
                 print("List '\(name)' is not empty: \(incomplete) incomplete, \(completed) completed")
-                print("Move or delete all reminders first")
+                print("Use --delete-items to delete the list and all its reminders")
                 exit(1)
             }
 
