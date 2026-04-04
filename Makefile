@@ -2,7 +2,7 @@ RELEASE_BUILD=./.build/apple/Products/Release
 EXECUTABLE=rems
 ARCHIVE=$(EXECUTABLE).tar.gz
 
-.PHONY: clean build-release package
+.PHONY: clean build-release package nix-update
 
 build-release:
 	swift build --configuration release -Xswiftc -warnings-as-errors --arch arm64 --arch x86_64
@@ -18,3 +18,7 @@ package: build-release
 clean:
 	rm -f $(EXECUTABLE) $(ARCHIVE) _rems
 	swift package clean
+
+nix-update:
+	cd "$$(ghq root)/github.com/ivankovnatsky/nix-config" && \
+	NIX_CONFIG="access-tokens = github.com=$$(gh auth token)" nix flake update rems --commit-lock-file
