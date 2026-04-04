@@ -200,8 +200,13 @@ extension EKReminder: @retroactive Encodable {
         try container.encode(self.priority, forKey: .priority)
         try container.encodeIfPresent(self.notes, forKey: .notes)
 
-        // URL (often nil due to Apple bug: https://developer.apple.com/forums/thread/128140)
-        try container.encodeIfPresent(self.url, forKey: .url)
+        // FIXME: HACK — EKCalendarItem.url is broken and always returns nil.
+        // Fall back to reading the URL from Reminders' private SQLite database.
+        // See: https://developer.apple.com/forums/thread/128140
+        // TODO: Remove this fallback when Apple fixes the EventKit url property.
+        let resolvedURL: URL? = self.url
+            ?? ReminderURLLookup.cachedURLs[self.calendarItemExternalIdentifier]
+        try container.encodeIfPresent(resolvedURL, forKey: .url)
 
         // Location (plain string from EKCalendarItem)
         try container.encodeIfPresent(self.location, forKey: .location)
