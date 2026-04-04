@@ -32,6 +32,10 @@
             pkgs.swiftpm
           ];
 
+          buildInputs = [
+            pkgs.sqlite
+          ];
+
           # Remove @retroactive annotations that require Swift 6.x
           postPatch = ''
             substituteInPlace Sources/RemsLibrary/EKReminder+Encodable.swift \
