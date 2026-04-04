@@ -150,7 +150,11 @@ public final class Reminders {
 
             switch outputFormat {
             case .json:
-                print(encodeToJson(data: matchingReminders.map { $0.0 }))
+                let items = matchingReminders.map { $0.0 }
+                ReminderURLLookup.prefetch(
+                    externalIDs: items.map { $0.calendarItemExternalIdentifier })
+                print(encodeToJson(data: items))
+                ReminderURLLookup.clearCache()
             case .tsv:
                 for (reminder, i, listName) in matchingReminders {
                     print(formatTSV(reminder, at: i, listName: listName))
@@ -201,7 +205,11 @@ public final class Reminders {
 
             switch outputFormat {
             case .json:
-                print(encodeToJson(data: matchingReminders.map { $0.0 }))
+                let items = matchingReminders.map { $0.0 }
+                ReminderURLLookup.prefetch(
+                    externalIDs: items.map { $0.calendarItemExternalIdentifier })
+                print(encodeToJson(data: items))
+                ReminderURLLookup.clearCache()
             case .tsv:
                 for (reminder, i) in matchingReminders {
                     print(formatTSV(reminder, at: i))
@@ -530,7 +538,10 @@ public final class Reminders {
             try Store.save(reminder, commit: true)
             switch outputFormat {
             case .json:
+                ReminderURLLookup.prefetch(
+                    externalIDs: [reminder.calendarItemExternalIdentifier])
                 print(encodeToJson(data: reminder))
+                ReminderURLLookup.clearCache()
             case .quiet:
                 break
             default:
