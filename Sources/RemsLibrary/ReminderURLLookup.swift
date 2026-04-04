@@ -6,6 +6,13 @@
 import Foundation
 import SQLite3
 
+/// SQLITE_TRANSIENT tells SQLite to make its own copy of bound strings,
+/// avoiding dangling pointer issues with temporary Swift string buffers.
+private let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
+
+/// SQLite default parameter limit.
+private let sqliteMaxVariableNumber = 999
+
 /// Looks up reminder URLs from the Reminders app's private CoreData SQLite
 /// database. This is necessary because `EKCalendarItem.url` always returns nil
 /// due to a long-standing Apple bug.
@@ -59,8 +66,15 @@ public enum ReminderURLLookup {
         guard !dbFiles.isEmpty else { return [:] }
 
         for dbPath in dbFiles {
-            guard let urls = queryDatabase(at: dbPath, externalIDs: externalIDs) else { continue }
-            result.merge(urls) { existing, _ in existing }
+            // Chunk IDs to stay under SQLite's variable limit (999).
+            // One slot is used for Z_ENT, leaving 998 for IDs.
+            let chunkSize = sqliteMaxVariableNumber - 1
+            for chunk in stride(from: 0, to: externalIDs.count, by: chunkSize) {
+                let end = min(chunk + chunkSize, externalIDs.count)
+                let slice = Array(externalIDs[chunk..<end])
+                guard let urls = queryDatabase(at: dbPath, externalIDs: slice) else { continue }
+                result.merge(urls) { existing, _ in existing }
+            }
         }
 
         return result
@@ -76,7 +90,7 @@ public enum ReminderURLLookup {
         // Dynamically look up Z_ENT for REMCDURLAttachment
         guard let zEnt = lookupEntityID(db: db, entityName: "REMCDURLAttachment") else { return nil }
 
-        // Build the query. We batch all external IDs at once using IN (...).
+        // Build the query. We batch external IDs using IN (...).
         let placeholders = externalIDs.map { _ in "?" }.joined(separator: ", ")
         let sql = """
             SELECT ZR.ZCKIDENTIFIER, ZO.ZURL
@@ -98,9 +112,11 @@ public enum ReminderURLLookup {
         // Bind Z_ENT as first parameter
         sqlite3_bind_int(stmt, 1, zEnt)
 
-        // Bind external IDs
+        // Bind external IDs using withCString for safe C interop
         for (i, eid) in externalIDs.enumerated() {
-            sqlite3_bind_text(stmt, Int32(i + 2), (eid as NSString).utf8String, -1, nil)
+            _ = eid.withCString { cStr in
+                sqlite3_bind_text(stmt, Int32(i + 2), cStr, -1, SQLITE_TRANSIENT)
+            }
         }
 
         var result: [String: URL] = [:]
@@ -126,7 +142,9 @@ public enum ReminderURLLookup {
         guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return nil }
         defer { sqlite3_finalize(stmt) }
 
-        sqlite3_bind_text(stmt, 1, (entityName as NSString).utf8String, -1, nil)
+        _ = entityName.withCString { cStr in
+            sqlite3_bind_text(stmt, 1, cStr, -1, SQLITE_TRANSIENT)
+        }
 
         guard sqlite3_step(stmt) == SQLITE_ROW else { return nil }
         return sqlite3_column_int(stmt, 0)
