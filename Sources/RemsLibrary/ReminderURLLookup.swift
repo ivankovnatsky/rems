@@ -18,9 +18,15 @@ private let sqliteMaxVariableNumber = 999
 /// due to a long-standing Apple bug.
 public enum ReminderURLLookup {
 
+    private static let lock = NSLock()
+    private static var _cachedURLs: [String: URL] = [:]
+
     /// Cached URL lookup results, keyed by `calendarItemExternalIdentifier`.
-    /// Set this before JSON-encoding reminders so `encode(to:)` can read it.
-    public static var cachedURLs: [String: URL] = [:]
+    /// Thread-safe: all access is serialized through a lock.
+    public static var cachedURLs: [String: URL] {
+        get { lock.lock(); defer { lock.unlock() }; return _cachedURLs }
+        set { lock.lock(); defer { lock.unlock() }; _cachedURLs = newValue }
+    }
 
     /// Batch-lookup URLs for the given external IDs and populate `cachedURLs`.
     public static func prefetch(externalIDs: [String]) {
@@ -110,13 +116,14 @@ public enum ReminderURLLookup {
         defer { sqlite3_finalize(stmt) }
 
         // Bind Z_ENT as first parameter
-        sqlite3_bind_int(stmt, 1, zEnt)
+        guard sqlite3_bind_int(stmt, 1, zEnt) == SQLITE_OK else { return nil }
 
         // Bind external IDs using withCString for safe C interop
         for (i, eid) in externalIDs.enumerated() {
-            _ = eid.withCString { cStr in
+            let rc = eid.withCString { cStr in
                 sqlite3_bind_text(stmt, Int32(i + 2), cStr, -1, SQLITE_TRANSIENT)
             }
+            guard rc == SQLITE_OK else { return nil }
         }
 
         var result: [String: URL] = [:]
@@ -142,9 +149,10 @@ public enum ReminderURLLookup {
         guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return nil }
         defer { sqlite3_finalize(stmt) }
 
-        _ = entityName.withCString { cStr in
+        let rc = entityName.withCString { cStr in
             sqlite3_bind_text(stmt, 1, cStr, -1, SQLITE_TRANSIENT)
         }
+        guard rc == SQLITE_OK else { return nil }
 
         guard sqlite3_step(stmt) == SQLITE_ROW else { return nil }
         return sqlite3_column_int(stmt, 0)
