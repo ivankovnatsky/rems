@@ -4,7 +4,7 @@
 // TODO: Remove this workaround when Apple fixes the EventKit url property.
 
 import Foundation
-import SQLite3
+import CSQLite3
 
 /// SQLITE_TRANSIENT tells SQLite to make its own copy of bound strings,
 /// avoiding dangling pointer issues with temporary Swift string buffers.
