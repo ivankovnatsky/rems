@@ -30,6 +30,7 @@
           nativeBuildInputs = [
             pkgs.swift
             pkgs.swiftpm
+            pkgs.pkg-config
           ];
 
           buildInputs = [
