@@ -17,10 +17,16 @@ let package = Package(
             name: "rems",
             dependencies: ["RemsLibrary"]
         ),
+        .systemLibrary(
+            name: "CSQLite3",
+            pkgConfig: "sqlite3",
+            providers: [.brew(["sqlite"])]
+        ),
         .target(
             name: "RemsLibrary",
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
+                "CSQLite3",
             ]
         ),
         .testTarget(
