@@ -413,27 +413,20 @@ public final class Reminders {
     func setComplete(_ complete: Bool, itemsAtIndexes indexes: [String], onListNamed name: String, completionDate: Date? = nil, dryRun: Bool = false) {
         let calendar = self.calendar(withName: name)
         let semaphore = DispatchSemaphore(value: 0)
-        let displayOptions = complete ? DisplayOptions.incomplete : .complete
         let action = complete ? "Completed" : "Uncompleted"
         var hadError = false
 
-        self.reminders(on: [calendar], displayOptions: displayOptions) { reminders in
+        self.reminders(on: [calendar], displayOptions: .all) { allReminders in
+            let targetReminders = allReminders.filter { complete ? !$0.isCompleted : $0.isCompleted }
             for index in indexes {
-                guard let reminder = self.getReminder(from: reminders, at: index) else {
-                    // Check if the reminder exists but is already in the target state
-                    let oppositeOptions: DisplayOptions = complete ? .complete : .incomplete
-                    let oppSemaphore = DispatchSemaphore(value: 0)
-                    self.reminders(on: [calendar], displayOptions: oppositeOptions) { allReminders in
-                        if let found = self.getReminder(from: allReminders, at: index) {
-                            let state = complete ? "completed" : "uncompleted"
-                            print("Reminder '\(found.title ?? index)' is already \(state)")
-                        } else {
-                            print("No reminder at index \(index) on \(name)")
-                            hadError = true
-                        }
-                        oppSemaphore.signal()
+                guard let reminder = self.getReminder(from: targetReminders, at: index) else {
+                    if Int(index) == nil, let found = self.getReminder(from: allReminders, at: index) {
+                        let state = complete ? "completed" : "uncompleted"
+                        print("Reminder '\(found.title ?? index)' is already \(state)")
+                    } else {
+                        print("No reminder at index \(index) on \(name)")
+                        hadError = true
                     }
-                    oppSemaphore.wait()
                     continue
                 }
 
