@@ -4,13 +4,13 @@ import Foundation
 
 private let Store = EKEventStore()
 private let dateFormatter = RelativeDateTimeFormatter()
-private func formattedDueDate(from reminder: EKReminder) -> String? {
+func formattedDueDate(from reminder: EKReminder) -> String? {
     return reminder.dueDateComponents?.date.map {
         dateFormatter.localizedString(for: $0, relativeTo: Date())
     }
 }
 
-private extension EKReminder {
+extension EKReminder {
     var mappedPriority: EKReminderPriority {
         UInt(exactly: self.priority).flatMap(EKReminderPriority.init) ?? EKReminderPriority.none
     }
@@ -36,7 +36,7 @@ private func formatTSV(_ reminder: EKReminder, at index: Int?, listName: String?
 }
 
 public enum OutputFormat: String, ExpressibleByArgument {
-    case json, plain, tsv, quiet
+    case json, plain, table, tsv, quiet
 }
 
 public enum DisplayOptions: String, Decodable {
@@ -106,7 +106,7 @@ public final class Reminders {
             print(encodeToJson(data: names))
         case .quiet:
             print(names.count)
-        case .plain, .tsv:
+        case .plain, .table, .tsv:
             for name in names {
                 print(name)
             }
@@ -115,10 +115,11 @@ public final class Reminders {
 
     func showAllReminders(dueOn dueDate: DateComponents?, includeOverdue: Bool,
         displayOptions: DisplayOptions, outputFormat: OutputFormat,
-        filter: ReminderFilter? = nil
+        filter: ReminderFilter? = nil, sort: Sort = .none, sortOrder: CustomSortOrder = .ascending
     ) {
         let semaphore = DispatchSemaphore(value: 0)
         let calendar = Calendar.current
+        let now = Date()
 
         self.reminders(on: self.getCalendars(), displayOptions: displayOptions) { reminders in
             var filtered = reminders
@@ -126,7 +127,7 @@ public final class Reminders {
                 filtered = filter.apply(to: filtered)
             }
 
-            var matchingReminders = [(EKReminder, Int, String)]()
+            var matchingReminders = [(EKReminder, Int?, String)]()
             for (i, reminder) in filtered.enumerated() {
                 let listName = reminder.calendar.title
                 guard let dueDate = dueDate?.date else {
@@ -148,6 +149,16 @@ public final class Reminders {
                 }
             }
 
+            if sort != .none {
+                matchingReminders = self.sortedReminderTuples(
+                    matchingReminders,
+                    reminder: { $0.0 },
+                    sort: sort,
+                    order: sortOrder,
+                    now: now
+                ).map { ($0.0, nil, $0.2) }
+            }
+
             switch outputFormat {
             case .json:
                 let items = matchingReminders.map { $0.0 }
@@ -159,6 +170,10 @@ public final class Reminders {
                 for (reminder, i, listName) in matchingReminders {
                     print(formatTSV(reminder, at: i, listName: listName))
                 }
+            case .table:
+                let tableEntries: [(reminder: EKReminder, index: Int?, listName: String?)] =
+                    matchingReminders.map { ($0.0, $0.1, $0.2) }
+                print(makeTable(reminders: tableEntries, includeList: true, now: now))
             case .quiet:
                 print(matchingReminders.count)
             case .plain:
@@ -178,14 +193,13 @@ public final class Reminders {
     {
         let semaphore = DispatchSemaphore(value: 0)
         let calendar = Calendar.current
+        let now = Date()
 
         self.reminders(on: [self.calendar(withName: name)], displayOptions: displayOptions) { reminders in
             var matchingReminders = [(EKReminder, Int?)]()
-            let reminders = sort == .none ? reminders : reminders.sorted(by: sort.sortFunction(order: sortOrder))
             for (i, reminder) in reminders.enumerated() {
-                let index = sort == .none ? i : nil
                 guard let dueDate = dueDate?.date else {
-                    matchingReminders.append((reminder, index))
+                    matchingReminders.append((reminder, i))
                     continue
                 }
 
@@ -199,8 +213,18 @@ public final class Reminders {
                     reminderDueDate, to: dueDate, toGranularity: .day) == .orderedAscending
 
                 if sameDay || (includeOverdue && earlierDay) {
-                    matchingReminders.append((reminder, index))
+                    matchingReminders.append((reminder, i))
                 }
+            }
+
+            if sort != .none {
+                matchingReminders = self.sortedReminderTuples(
+                    matchingReminders,
+                    reminder: { $0.0 },
+                    sort: sort,
+                    order: sortOrder,
+                    now: now
+                ).map { ($0.0, nil) }
             }
 
             switch outputFormat {
@@ -214,6 +238,10 @@ public final class Reminders {
                 for (reminder, i) in matchingReminders {
                     print(formatTSV(reminder, at: i))
                 }
+            case .table:
+                let tableEntries: [(reminder: EKReminder, index: Int?, listName: String?)] =
+                    matchingReminders.map { ($0.0, $0.1, nil) }
+                print(makeTable(reminders: tableEntries, includeList: false, now: now))
             case .quiet:
                 print(matchingReminders.count)
             case .plain:
@@ -603,6 +631,29 @@ public final class Reminders {
     private func getCalendars() -> [EKCalendar] {
         return Store.calendars(for: .reminder)
                     .filter { $0.allowsContentModifications }
+    }
+
+    private func sortedReminderTuples<Element>(
+        _ reminders: [Element],
+        reminder: (Element) -> EKReminder,
+        sort: Sort,
+        order: CustomSortOrder,
+        now: Date
+    ) -> [Element] {
+        let compare = sort.sortFunction(order: order, now: now)
+        return reminders.enumerated().sorted { lhs, rhs in
+            let lhsReminder = reminder(lhs.element)
+            let rhsReminder = reminder(rhs.element)
+
+            if compare(lhsReminder, rhsReminder) {
+                return true
+            }
+            if compare(rhsReminder, lhsReminder) {
+                return false
+            }
+
+            return lhs.offset < rhs.offset
+        }.map(\.element)
     }
 
     private func getReminder(from reminders: [EKReminder], at index: String) -> EKReminder? {
