@@ -11,13 +11,13 @@ for personal use, later incorporating ideas from [steipete/remindctl](https://gi
 - Recurrence support (daily, weekly, biweekly, monthly, yearly, weekdays, weekends)
 - Smart filters: today, tomorrow, week, overdue, upcoming, completed
 - Reminder lookup by index, title, external ID, or ID prefix (with ambiguity detection)
-- Multiple output formats: plain, JSON, TSV, quiet
+- Multiple output formats: plain, table, JSON, TSV, quiet
 - Batch complete/uncomplete multiple reminders at once
 - Dry-run mode for previewing changes
 - Confirmation prompts on delete with `--force` to skip
 - List management: create, delete, rename
 - Move reminders between lists
-- Sort by creation date or due date
+- Sort by creation date, due date, or urgency
 - Priority levels (low, medium, high)
 - Permission management: status check and access request
 
@@ -39,8 +39,14 @@ rems show-lists
 # Show reminders on a list
 rems show MyList
 
+# Show a Taskwarrior-like table sorted by urgency
+rems show MyList --format table --sort urgency
+
 # Show all reminders across lists
 rems show-all
+
+# Show all reminders in a cross-list table
+rems show-all --format table --sort urgency
 
 # Filter reminders (today, tomorrow, week, overdue, upcoming, completed, all)
 rems show-all --filter today
@@ -90,6 +96,9 @@ rems authorize
 
 # JSON output
 rems show MyList --format json
+
+# Table output
+rems show MyList --format table
 
 # TSV output for scripting
 rems show-all --format tsv
