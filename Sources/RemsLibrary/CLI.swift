@@ -11,7 +11,7 @@ private struct ShowLists: ParsableCommand {
         abstract: "Print the name of lists to pass to other commands")
     @Option(
         name: .shortAndLong,
-        help: "Output format: plain, json, tsv, or quiet")
+        help: "Output format: plain, table, json, tsv, or quiet")
     var format: OutputFormat = .plain
 
     func run() {
@@ -39,12 +39,22 @@ private struct ShowAll: ParsableCommand {
 
     @Option(
         name: .shortAndLong,
+        help: "Show the reminders in a specific order, one of: \(Sort.commaSeparatedCases)")
+    var sort: Sort = .none
+
+    @Option(
+        name: [.customShort("o"), .long],
+        help: "How the sort order should be applied, one of: \(CustomSortOrder.commaSeparatedCases)")
+    var sortOrder: CustomSortOrder?
+
+    @Option(
+        name: .shortAndLong,
         help: "Show only reminders due on this date")
     var dueDate: DateComponents?
 
     @Option(
         name: .shortAndLong,
-        help: "Output format: plain, json, tsv, or quiet")
+        help: "Output format: plain, table, json, tsv, or quiet")
     var format: OutputFormat = .plain
 
     func validate() throws {
@@ -68,10 +78,12 @@ private struct ShowAll: ParsableCommand {
             displayOptions = .all
         }
 
+        let resolvedSortOrder = self.sortOrder ?? sort.defaultOrder
+
         reminders.showAllReminders(
             dueOn: self.dueDate, includeOverdue: self.includeOverdue,
             displayOptions: displayOptions, outputFormat: format,
-            filter: self.filter)
+            filter: self.filter, sort: sort, sortOrder: resolvedSortOrder)
     }
 }
 
@@ -101,7 +113,7 @@ private struct Show: ParsableCommand {
     @Option(
         name: [.customShort("o"), .long],
         help: "How the sort order should be applied, one of: \(CustomSortOrder.commaSeparatedCases)")
-    var sortOrder: CustomSortOrder = .ascending
+    var sortOrder: CustomSortOrder?
 
     @Option(
         name: .shortAndLong,
@@ -110,7 +122,7 @@ private struct Show: ParsableCommand {
 
     @Option(
         name: .shortAndLong,
-        help: "Output format: plain, json, tsv, or quiet")
+        help: "Output format: plain, table, json, tsv, or quiet")
     var format: OutputFormat = .plain
 
     func validate() throws {
@@ -128,9 +140,11 @@ private struct Show: ParsableCommand {
             displayOptions = .all
         }
 
+        let resolvedSortOrder = self.sortOrder ?? sort.defaultOrder
+
         reminders.showListItems(
             withName: self.listName, dueOn: self.dueDate, includeOverdue: self.includeOverdue,
-            displayOptions: displayOptions, outputFormat: format, sort: sort, sortOrder: sortOrder)
+            displayOptions: displayOptions, outputFormat: format, sort: sort, sortOrder: resolvedSortOrder)
     }
 }
 
@@ -160,7 +174,7 @@ private struct Add: ParsableCommand {
 
     @Option(
         name: .shortAndLong,
-        help: "Output format: plain, json, tsv, or quiet")
+        help: "Output format: plain, table, json, tsv, or quiet")
     var format: OutputFormat = .plain
 
     @Option(
