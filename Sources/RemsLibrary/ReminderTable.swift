@@ -1,6 +1,14 @@
 import EventKit
 import Foundation
 
+private func terminalWidth() -> Int {
+    var w = winsize()
+    if ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == 0, w.ws_col > 0 {
+        return Int(w.ws_col)
+    }
+    return 80
+}
+
 struct ReminderTableRow {
     let values: [String]
 }
@@ -43,7 +51,7 @@ func tablePriorityString(for reminder: EKReminder) -> String {
 }
 
 func tableStatusString(for reminder: EKReminder) -> String {
-    reminder.isCompleted ? "done" : "todo"
+    reminder.isCompleted ? "completed" : "-"
 }
 
 func tableTitleString(for reminder: EKReminder) -> String {
@@ -95,11 +103,22 @@ func makeTable(
         return ReminderTableRow(values: values)
     }
 
-    let widths = columns.enumerated().map { offset, column in
+    var widths = columns.enumerated().map { offset, column in
         max(
             column.rawValue.count,
             rows.map { $0.values[offset].count }.max() ?? 0
         )
+    }
+
+    let titleIndex = columns.count - 1
+    let termWidth = terminalWidth()
+    let nonTitleWidth = widths.dropLast().reduce(0, +) + (columns.count - 1) * 2
+    let maxTitleWidth = max(columns[titleIndex].rawValue.count, termWidth - nonTitleWidth)
+    widths[titleIndex] = min(widths[titleIndex], maxTitleWidth)
+
+    let truncate = { (s: String, maxLen: Int) -> String in
+        guard s.count > maxLen, maxLen > 1 else { return s }
+        return String(s.prefix(maxLen - 1)) + "…"
     }
 
     let header = columns.enumerated().map { offset, column in
@@ -110,10 +129,11 @@ func makeTable(
 
     let body = rows.map { row in
         row.values.enumerated().map { offset, value in
+            let val = offset == titleIndex ? truncate(value, widths[offset]) : value
             if offset == columns.count - 1 {
-                return value
+                return val
             }
-            return value.padding(toLength: widths[offset], withPad: " ", startingAt: 0)
+            return val.padding(toLength: widths[offset], withPad: " ", startingAt: 0)
         }.joined(separator: "  ")
     }
 
