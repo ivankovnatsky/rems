@@ -330,6 +330,59 @@ public final class Reminders {
         }
     }
 
+    func purgeLists(force: Bool = false, dryRun: Bool = false) {
+        let calendars = self.getCalendars()
+        let semaphore = DispatchSemaphore(value: 0)
+
+        self.reminders(on: calendars, displayOptions: .all) { reminders in
+            let remindersByCalendar = Dictionary(grouping: reminders) { $0.calendar.calendarIdentifier }
+            let emptyCalendars = calendars.filter { remindersByCalendar[$0.calendarIdentifier] == nil }
+
+            if emptyCalendars.isEmpty {
+                print("No empty lists found")
+                semaphore.signal()
+                return
+            }
+
+            if dryRun {
+                print("Would delete \(emptyCalendars.count) empty list(s):")
+                for calendar in emptyCalendars {
+                    print("  \(calendar.title)")
+                }
+                semaphore.signal()
+                return
+            }
+
+            print("Found \(emptyCalendars.count) empty list(s):")
+            for calendar in emptyCalendars {
+                print("  \(calendar.title)")
+            }
+
+            if !force && !Console.confirm("Delete all empty lists?") {
+                print("Cancelled")
+                semaphore.signal()
+                return
+            }
+
+            var deleted = 0
+            for calendar in emptyCalendars {
+                do {
+                    let title = calendar.title
+                    try Store.removeCalendar(calendar, commit: true)
+                    print("Deleted '\(title)'")
+                    deleted += 1
+                } catch let error {
+                    print("Failed to delete '\(calendar.title)': \(error)")
+                }
+            }
+
+            print("Deleted \(deleted) empty list(s)")
+            semaphore.signal()
+        }
+
+        semaphore.wait()
+    }
+
     func renameList(oldName: String, newName: String) {
         let calendar = self.calendar(withName: oldName)
 
