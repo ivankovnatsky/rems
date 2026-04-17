@@ -499,7 +499,7 @@ private struct DeleteList: ParsableCommand {
     }
 }
 
-private struct PurgeLists: ParsableCommand {
+private struct CleanLists: ParsableCommand {
     static let configuration = CommandConfiguration(
         abstract: "Delete all empty lists")
 
@@ -605,7 +605,7 @@ public struct CLI: ParsableCommand {
             Edit.self,
             Move.self,
             NewList.self,
-            PurgeLists.self,
+            CleanLists.self,
             RenameList.self,
             Show.self,
             ShowAll.self,
