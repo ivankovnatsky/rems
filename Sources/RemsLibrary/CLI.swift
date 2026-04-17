@@ -499,6 +499,25 @@ private struct DeleteList: ParsableCommand {
     }
 }
 
+private struct PurgeLists: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        abstract: "Delete all empty lists")
+
+    @Flag(
+        name: .shortAndLong,
+        help: "Skip confirmation prompt")
+    var force = false
+
+    @Flag(
+        name: [.customShort("n"), .customLong("dry-run")],
+        help: "Preview the action without making changes")
+    var dryRun = false
+
+    func run() {
+        reminders.purgeLists(force: force, dryRun: dryRun)
+    }
+}
+
 private struct RenameList: ParsableCommand {
     static let configuration = CommandConfiguration(
         abstract: "Rename a list")
@@ -586,6 +605,7 @@ public struct CLI: ParsableCommand {
             Edit.self,
             Move.self,
             NewList.self,
+            PurgeLists.self,
             RenameList.self,
             Show.self,
             ShowAll.self,
