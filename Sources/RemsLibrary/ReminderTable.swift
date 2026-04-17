@@ -18,6 +18,8 @@ enum ReminderTableColumn: String {
     case id = "ID"
     case list = "LIST"
     case status = "STATUS"
+    case created = "CREATED"
+    case done = "DONE"
     case due = "DUE"
     case priority = "PRI"
     case title = "TITLE"
@@ -53,6 +55,18 @@ func tableStatusString(for reminder: EKReminder) -> String {
     reminder.isCompleted ? "completed" : "-"
 }
 
+private let relativeDateFormatter = RelativeDateTimeFormatter()
+
+func tableCompletedString(for reminder: EKReminder) -> String {
+    guard let date = reminder.completionDate else { return "-" }
+    return relativeDateFormatter.localizedString(for: date, relativeTo: Date())
+}
+
+func tableCreatedString(for reminder: EKReminder) -> String {
+    guard let date = reminder.creationDate else { return "-" }
+    return relativeDateFormatter.localizedString(for: date, relativeTo: Date())
+}
+
 func tableTitleString(for reminder: EKReminder) -> String {
     let title = reminder.title ?? "<unknown>"
     guard let notes = reminder.notes, !notes.isEmpty else {
@@ -70,9 +84,13 @@ func makeTable(
     includeList: Bool,
     now: Date = Date()
 ) -> String {
-    let columns: [ReminderTableColumn] = includeList
-        ? [.index, .id, .list, .status, .due, .priority, .title]
-        : [.index, .id, .status, .due, .priority, .title]
+    let hasCompleted = reminders.contains { $0.reminder.isCompleted }
+    var columns: [ReminderTableColumn] = includeList
+        ? [.index, .id, .list, .status, .created, .due, .priority, .title]
+        : [.index, .id, .status, .created, .due, .priority, .title]
+    if hasCompleted, let statusIdx = columns.firstIndex(of: .status) {
+        columns.insert(.done, at: statusIdx + 1)
+    }
 
     let rows = reminders.map { entry in
         let reminder = entry.reminder
@@ -86,6 +104,10 @@ func makeTable(
                 return entry.listName ?? reminder.calendar.title
             case .status:
                 return tableStatusString(for: reminder)
+            case .created:
+                return tableCreatedString(for: reminder)
+            case .done:
+                return tableCompletedString(for: reminder)
             case .due:
                 return tableDueString(for: reminder)
             case .priority:
