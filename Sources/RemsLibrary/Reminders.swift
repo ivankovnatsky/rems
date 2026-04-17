@@ -258,6 +258,13 @@ public final class Reminders {
 
     func deleteList(withName name: String, force: Bool = false, deleteItems: Bool = false) {
         let calendar = self.calendar(withName: name)
+
+        if let defaultCal = Store.defaultCalendarForNewReminders(),
+           calendar.calendarIdentifier == defaultCal.calendarIdentifier {
+            print("Cannot delete the default Reminders list '\(calendar.title)'")
+            exit(1)
+        }
+
         let semaphore = DispatchSemaphore(value: 0)
 
         self.reminders(on: [calendar], displayOptions: .all) { reminders in
@@ -336,7 +343,11 @@ public final class Reminders {
 
         self.reminders(on: calendars, displayOptions: .all) { reminders in
             let remindersByCalendar = Dictionary(grouping: reminders) { $0.calendar.calendarIdentifier }
-            let emptyCalendars = calendars.filter { remindersByCalendar[$0.calendarIdentifier] == nil }
+            let defaultCalID = Store.defaultCalendarForNewReminders()?.calendarIdentifier
+            let emptyCalendars = calendars.filter {
+                remindersByCalendar[$0.calendarIdentifier] == nil
+                    && $0.calendarIdentifier != defaultCalID
+            }
 
             if emptyCalendars.isEmpty {
                 print("No empty lists found")
