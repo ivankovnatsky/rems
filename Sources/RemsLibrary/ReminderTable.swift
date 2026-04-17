@@ -20,7 +20,6 @@ enum ReminderTableColumn: String {
     case status = "STATUS"
     case due = "DUE"
     case priority = "PRI"
-    case urgency = "URG"
     case title = "TITLE"
 }
 
@@ -72,8 +71,8 @@ func makeTable(
     now: Date = Date()
 ) -> String {
     let columns: [ReminderTableColumn] = includeList
-        ? [.index, .id, .list, .status, .due, .priority, .urgency, .title]
-        : [.index, .id, .status, .due, .priority, .urgency, .title]
+        ? [.index, .id, .list, .status, .due, .priority, .title]
+        : [.index, .id, .status, .due, .priority, .title]
 
     let rows = reminders.map { entry in
         let reminder = entry.reminder
@@ -91,11 +90,6 @@ func makeTable(
                 return tableDueString(for: reminder)
             case .priority:
                 return tablePriorityString(for: reminder)
-            case .urgency:
-                if reminder.isCompleted {
-                    return "-"
-                }
-                return String(format: "%.1f", reminder.urgency(now: now).score)
             case .title:
                 return tableTitleString(for: reminder)
             }
