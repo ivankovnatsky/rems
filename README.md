@@ -8,14 +8,18 @@ for personal use, later incorporating ideas from [steipete/remindctl](https://gi
 ## Features
 
 - Natural language date parsing ("tomorrow 9am", "next monday", "in 2 days") with ISO 8601 and explicit format fallback
-- Recurrence support (daily, weekly, biweekly, monthly, yearly, weekdays, weekends)
+- Recurrence support (daily, weekly, biweekly, monthly, yearly, weekdays, weekends, every-3-months, every-6-months)
 - Smart filters: today, tomorrow, week, overdue, upcoming, completed
+- Tag support: add #hashtags to reminders, filter by tag, clear tags
 - Reminder lookup by index, title, external ID, or ID prefix (with ambiguity detection)
 - Multiple output formats: plain, table, JSON, TSV, quiet
+- Table format with dynamic columns (IDX, LIST, STATUS, CREATED, DONE, DUE, PRI, TAGS, TITLE) and terminal-width-aware truncation
+- Smart output: title truncation disabled when piped to other commands
 - Batch complete/uncomplete multiple reminders at once
 - Dry-run mode for previewing changes
 - Confirmation prompts on delete with `--force` to skip
-- List management: create, delete, rename
+- List management: create, delete, rename, clean empty lists
+- Default list protection (prevents accidental deletion)
 - Move reminders between lists
 - Sort by creation date, due date, or urgency
 - Priority levels (low, medium, high)
@@ -53,11 +57,21 @@ rems show-all --filter today
 rems show-all --filter overdue
 rems show-all --filter upcoming
 
+# Filter by tag
+rems show MyList --tag shopping
+rems show MyList --tag work --tag urgent
+
 # Add a reminder
 rems add MyList Buy milk --due-date tomorrow --priority high
 
 # Add with recurrence
 rems add MyList "Take vitamins" --due-date "tomorrow 9am" --repeat daily
+
+# Add with tags
+rems add MyList "Buy groceries" --tags shopping,errands
+
+# Add with notes
+rems add MyList "Call dentist" --notes "Ask about insurance"
 
 # Complete reminders (supports batch)
 rems complete MyList 0 1 2
@@ -70,6 +84,15 @@ rems uncomplete MyList 0
 
 # Edit a reminder
 rems edit MyList 0 --due-date "next monday" --priority medium
+
+# Edit tags on a reminder
+rems edit MyList 0 --tags work,urgent
+
+# Clear all tags from a reminder
+rems edit MyList 0 --clear-tags
+
+# Clear due date from a reminder
+rems edit MyList 0 --clear-due-date
 
 # Delete a reminder (prompts for confirmation)
 rems delete MyList 0
@@ -87,6 +110,10 @@ rems move SourceList 0 NewList --create
 rems new-list MyNewList
 rems rename-list OldName NewName
 rems delete-list EmptyList --force
+
+# Clean up all empty lists
+rems clean-lists
+rems clean-lists --dry-run
 
 # Check authorization status
 rems status
