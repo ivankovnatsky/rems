@@ -1,12 +1,12 @@
 import EventKit
 import Foundation
 
-private func terminalWidth() -> Int {
+private func terminalWidth() -> Int? {
     var w = winsize()
     if ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == 0, w.ws_col > 0 {
         return Int(w.ws_col)
     }
-    return 80
+    return nil
 }
 
 struct ReminderTableRow {
@@ -127,10 +127,11 @@ func makeTable(
     }
 
     let titleIndex = columns.count - 1
-    let termWidth = terminalWidth()
-    let nonTitleWidth = widths.dropLast().reduce(0, +) + (columns.count - 1) * 2
-    let maxTitleWidth = max(columns[titleIndex].rawValue.count, termWidth - nonTitleWidth)
-    widths[titleIndex] = min(widths[titleIndex], maxTitleWidth)
+    if let termWidth = terminalWidth() {
+        let nonTitleWidth = widths.dropLast().reduce(0, +) + (columns.count - 1) * 2
+        let maxTitleWidth = max(columns[titleIndex].rawValue.count, termWidth - nonTitleWidth)
+        widths[titleIndex] = min(widths[titleIndex], maxTitleWidth)
+    }
 
     let truncate = { (s: String, maxLen: Int) -> String in
         guard s.count > maxLen, maxLen > 1 else { return s }
