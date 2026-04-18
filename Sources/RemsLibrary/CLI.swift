@@ -377,6 +377,9 @@ private struct Edit: ParsableCommand {
     @Flag(help: "Clear the due date on the reminder")
     var clearDueDate = false
 
+    @Flag(help: "Clear all tags on the reminder")
+    var clearTags = false
+
     @Flag(help: "Show completed items only")
     var onlyCompleted = false
 
@@ -394,11 +397,14 @@ private struct Edit: ParsableCommand {
     var reminder: [String] = []
 
     func validate() throws {
-        if self.reminder.isEmpty && self.notes == nil && self.dueDate == nil && self.priority == nil && self.recurrence == nil && self.completionDate == nil && !self.clearDueDate && self.tags.isEmpty {
+        if self.reminder.isEmpty && self.notes == nil && self.dueDate == nil && self.priority == nil && self.recurrence == nil && self.completionDate == nil && !self.clearDueDate && self.tags.isEmpty && !self.clearTags {
             throw ValidationError("Must specify either new reminder content, notes, due date, priority, repeat, tags, or completion date")
         }
         if self.dueDate != nil && self.clearDueDate {
             throw ValidationError("Cannot specify both --due-date and --clear-due-date")
+        }
+        if !self.tags.isEmpty && self.clearTags {
+            throw ValidationError("Cannot specify both --tags and --clear-tags")
         }
         if self.onlyCompleted && self.includeCompleted {
             throw ValidationError(
@@ -426,6 +432,7 @@ private struct Edit: ParsableCommand {
             newRecurrence: self.recurrence,
             newCompletionDate: self.completionDate?.date,
             newTags: self.tags.isEmpty ? nil : self.tags,
+            clearTags: self.clearTags,
             displayOptions: displayOptions,
             dryRun: self.dryRun
         )

@@ -99,8 +99,9 @@ func makeTable(
     if hasCompleted, let statusIdx = columns.firstIndex(of: .status) {
         columns.insert(.done, at: statusIdx + 1)
     }
-    if hasTags, let priIdx = columns.firstIndex(of: .priority) {
-        columns.insert(.tags, at: priIdx + 1)
+    if hasTags {
+        let insertIdx = columns.firstIndex(of: .title) ?? columns.endIndex
+        columns.insert(.tags, at: insertIdx)
     }
 
     let rows = reminders.map { entry in
