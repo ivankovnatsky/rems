@@ -28,12 +28,6 @@ private struct ShowAll: ParsableCommand {
         help: "Filter reminders: today, tomorrow, week, overdue, upcoming, completed, or all")
     var filter: ReminderFilter?
 
-    @Option(
-        name: .long,
-        parsing: .upToNextOption,
-        help: "Filter reminders by tag (matches #hashtags in notes)")
-    var tag: [String] = []
-
     @Flag(help: "Show completed items only")
     var onlyCompleted = false
 
@@ -89,7 +83,7 @@ private struct ShowAll: ParsableCommand {
         reminders.showAllReminders(
             dueOn: self.dueDate, includeOverdue: self.includeOverdue,
             displayOptions: displayOptions, outputFormat: format,
-            filter: self.filter, tagFilter: self.tag,
+            filter: self.filter,
             sort: sort, sortOrder: resolvedSortOrder)
     }
 }
@@ -102,12 +96,6 @@ private struct Show: ParsableCommand {
         help: "The list to print items from, see 'show-lists' for names",
         completion: .custom(listNameCompletion))
     var listName: String
-
-    @Option(
-        name: .long,
-        parsing: .upToNextOption,
-        help: "Filter reminders by tag (matches #hashtags in notes)")
-    var tag: [String] = []
 
     @Flag(help: "Show completed items only")
     var onlyCompleted = false
@@ -157,7 +145,7 @@ private struct Show: ParsableCommand {
 
         reminders.showListItems(
             withName: self.listName, dueOn: self.dueDate, includeOverdue: self.includeOverdue,
-            displayOptions: displayOptions, outputFormat: format, tagFilter: self.tag,
+            displayOptions: displayOptions, outputFormat: format,
             sort: sort, sortOrder: resolvedSortOrder)
     }
 }
@@ -201,23 +189,13 @@ private struct Add: ParsableCommand {
         help: "The recurrence interval, one of: daily, weekly, monthly, yearly")
     var recurrence: Recurrence?
 
-    @Option(
-        name: .shortAndLong,
-        parsing: .upToNextOption,
-        help: "Tags to add to the reminder (stored as #hashtags in notes)")
-    var tags: [String] = []
-
     @Flag(name: .shortAndLong, help: "Create the list if it doesn't exist")
     var create = false
 
     func run() {
-        var resolvedNotes = self.notes
-        if !tags.isEmpty {
-            resolvedNotes = addTagsToNotes(existingNotes: resolvedNotes, tags: tags)
-        }
         reminders.addReminder(
             string: self.reminder.joined(separator: " "),
-            notes: resolvedNotes,
+            notes: self.notes,
             toListNamed: self.listName,
             dueDateComponents: self.dueDate,
             priority: priority,
@@ -368,17 +346,8 @@ private struct Edit: ParsableCommand {
         help: "The completion date to set on the reminder")
     var completionDate: DateComponents?
 
-    @Option(
-        name: .shortAndLong,
-        parsing: .upToNextOption,
-        help: "Tags to set on the reminder (replaces existing tags)")
-    var tags: [String] = []
-
     @Flag(help: "Clear the due date on the reminder")
     var clearDueDate = false
-
-    @Flag(help: "Clear all tags on the reminder")
-    var clearTags = false
 
     @Flag(help: "Show completed items only")
     var onlyCompleted = false
@@ -397,14 +366,11 @@ private struct Edit: ParsableCommand {
     var reminder: [String] = []
 
     func validate() throws {
-        if self.reminder.isEmpty && self.notes == nil && self.dueDate == nil && self.priority == nil && self.recurrence == nil && self.completionDate == nil && !self.clearDueDate && self.tags.isEmpty && !self.clearTags {
-            throw ValidationError("Must specify either new reminder content, notes, due date, priority, repeat, tags, or completion date")
+        if self.reminder.isEmpty && self.notes == nil && self.dueDate == nil && self.priority == nil && self.recurrence == nil && self.completionDate == nil && !self.clearDueDate {
+            throw ValidationError("Must specify either new reminder content, notes, due date, clear due date, priority, repeat, or completion date")
         }
         if self.dueDate != nil && self.clearDueDate {
             throw ValidationError("Cannot specify both --due-date and --clear-due-date")
-        }
-        if !self.tags.isEmpty && self.clearTags {
-            throw ValidationError("Cannot specify both --tags and --clear-tags")
         }
         if self.onlyCompleted && self.includeCompleted {
             throw ValidationError(
@@ -431,8 +397,6 @@ private struct Edit: ParsableCommand {
             newPriority: self.priority,
             newRecurrence: self.recurrence,
             newCompletionDate: self.completionDate?.date,
-            newTags: self.tags.isEmpty ? nil : self.tags,
-            clearTags: self.clearTags,
             displayOptions: displayOptions,
             dryRun: self.dryRun
         )

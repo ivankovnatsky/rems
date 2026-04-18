@@ -115,7 +115,7 @@ public final class Reminders {
 
     func showAllReminders(dueOn dueDate: DateComponents?, includeOverdue: Bool,
         displayOptions: DisplayOptions, outputFormat: OutputFormat,
-        filter: ReminderFilter? = nil, tagFilter: [String] = [],
+        filter: ReminderFilter? = nil,
         sort: Sort = .none, sortOrder: CustomSortOrder = .ascending
     ) {
         let semaphore = DispatchSemaphore(value: 0)
@@ -127,7 +127,6 @@ public final class Reminders {
             if let filter = filter {
                 filtered = filter.apply(to: filtered)
             }
-            filtered = self.filterByTags(filtered, tags: tagFilter)
 
             var matchingReminders = [(EKReminder, Int?, String)]()
             for (i, reminder) in filtered.enumerated() {
@@ -191,7 +190,7 @@ public final class Reminders {
     }
 
     func showListItems(withName name: String, dueOn dueDate: DateComponents?, includeOverdue: Bool,
-        displayOptions: DisplayOptions, outputFormat: OutputFormat, tagFilter: [String] = [],
+        displayOptions: DisplayOptions, outputFormat: OutputFormat,
         sort: Sort, sortOrder: CustomSortOrder)
     {
         let semaphore = DispatchSemaphore(value: 0)
@@ -199,9 +198,8 @@ public final class Reminders {
         let now = Date()
 
         self.reminders(on: [self.calendar(withName: name)], displayOptions: displayOptions) { reminders in
-            let filteredReminders = self.filterByTags(reminders, tags: tagFilter)
             var matchingReminders = [(EKReminder, Int?)]()
-            for (i, reminder) in filteredReminders.enumerated() {
+            for (i, reminder) in reminders.enumerated() {
                 guard let dueDate = dueDate?.date else {
                     matchingReminders.append((reminder, i))
                     continue
@@ -411,7 +409,7 @@ public final class Reminders {
         }
     }
 
-    func edit(itemAtIndex index: String, onListNamed name: String, newText: String?, newNotes: String?, newDueDate: DateComponents? = nil, clearDueDate: Bool = false, newPriority: Priority? = nil, newRecurrence: Recurrence? = nil, newCompletionDate: Date? = nil, newTags: [String]? = nil, clearTags: Bool = false, displayOptions: DisplayOptions = .incomplete, dryRun: Bool = false) {
+    func edit(itemAtIndex index: String, onListNamed name: String, newText: String?, newNotes: String?, newDueDate: DateComponents? = nil, clearDueDate: Bool = false, newPriority: Priority? = nil, newRecurrence: Recurrence? = nil, newCompletionDate: Date? = nil, displayOptions: DisplayOptions = .incomplete, dryRun: Bool = false) {
         let calendar = self.calendar(withName: name)
         let semaphore = DispatchSemaphore(value: 0)
 
@@ -430,20 +428,7 @@ public final class Reminders {
             do {
                 reminder.title = newText ?? reminder.title
                 if let newNotes = newNotes {
-                    if newTags == nil && !clearTags {
-                        let existingTags = reminder.reminderTags
-                        reminder.notes = newNotes
-                        if !existingTags.isEmpty {
-                            reminder.notes = addTagsToNotes(existingNotes: reminder.notes, tags: existingTags)
-                        }
-                    } else {
-                        reminder.notes = newNotes
-                    }
-                }
-                if clearTags {
-                    reminder.notes = stripTagsFromNotes(reminder.notes)
-                } else if let tags = newTags {
-                    reminder.notes = replaceTagsInNotes(existingNotes: reminder.notes, tags: tags)
+                    reminder.notes = newNotes
                 }
                 if clearDueDate {
                     reminder.dueDateComponents = nil
@@ -658,17 +643,6 @@ public final class Reminders {
     }
 
     // MARK: - Private functions
-
-    private func filterByTags(_ reminders: [EKReminder], tags: [String]) -> [EKReminder] {
-        guard !tags.isEmpty else { return reminders }
-        let normalized = tags.map {
-            $0.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "#"))
-        }
-        return reminders.filter { reminder in
-            let reminderTags = reminder.reminderTags.map { $0.lowercased() }
-            return normalized.allSatisfy { reminderTags.contains($0) }
-        }
-    }
 
     private func reminders(
         on calendars: [EKCalendar],

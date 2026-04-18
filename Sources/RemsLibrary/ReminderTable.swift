@@ -22,7 +22,6 @@ enum ReminderTableColumn: String {
     case done = "DONE"
     case due = "DUE"
     case priority = "PRI"
-    case tags = "TAGS"
     case title = "TITLE"
 }
 
@@ -68,12 +67,6 @@ func tableCreatedString(for reminder: EKReminder) -> String {
     return relativeDateFormatter.localizedString(for: date, relativeTo: Date())
 }
 
-func tableTagsString(for reminder: EKReminder) -> String {
-    let tags = reminder.reminderTags
-    if tags.isEmpty { return "-" }
-    return tags.map { "#\($0)" }.joined(separator: " ")
-}
-
 func tableTitleString(for reminder: EKReminder) -> String {
     let title = reminder.title ?? "<unknown>"
     guard let notes = reminder.notes, !notes.isEmpty else {
@@ -92,16 +85,11 @@ func makeTable(
     now: Date = Date()
 ) -> String {
     let hasCompleted = reminders.contains { $0.reminder.isCompleted }
-    let hasTags = reminders.contains { !$0.reminder.reminderTags.isEmpty }
     var columns: [ReminderTableColumn] = includeList
         ? [.index, .id, .list, .status, .created, .due, .priority, .title]
         : [.index, .id, .status, .created, .due, .priority, .title]
     if hasCompleted, let statusIdx = columns.firstIndex(of: .status) {
         columns.insert(.done, at: statusIdx + 1)
-    }
-    if hasTags {
-        let insertIdx = columns.firstIndex(of: .title) ?? columns.endIndex
-        columns.insert(.tags, at: insertIdx)
     }
 
     let rows = reminders.map { entry in
@@ -124,8 +112,6 @@ func makeTable(
                 return tableDueString(for: reminder)
             case .priority:
                 return tablePriorityString(for: reminder)
-            case .tags:
-                return tableTagsString(for: reminder)
             case .title:
                 return tableTitleString(for: reminder)
             }
