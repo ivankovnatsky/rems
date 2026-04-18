@@ -184,6 +184,7 @@ extension EKReminder: @retroactive Encodable {
         case recurrenceRules
         case alarms
         case attendees
+        case tags
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -260,6 +261,12 @@ extension EKReminder: @retroactive Encodable {
         if let attendees = self.attendees, !attendees.isEmpty {
             let encodableAttendees = attendees.map { EncodableParticipant(from: $0) }
             try container.encode(encodableAttendees, forKey: .attendees)
+        }
+
+        // Tags (parsed from notes)
+        let tags = self.reminderTags
+        if !tags.isEmpty {
+            try container.encode(tags, forKey: .tags)
         }
     }
 
