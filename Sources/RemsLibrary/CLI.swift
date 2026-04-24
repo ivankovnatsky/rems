@@ -6,22 +6,119 @@ private let reminders = Reminders()
 
 protocol SkipsAccessRequest {}
 
-private struct ShowLists: ParsableCommand {
+private struct Lists: ParsableCommand {
     static let configuration = CommandConfiguration(
-        abstract: "Print the name of lists to pass to other commands")
-    @Option(
-        name: .shortAndLong,
-        help: "Output format: plain, table, json, tsv, or quiet")
-    var format: OutputFormat = .plain
+        abstract: "Manage reminder lists",
+        subcommands: [
+            Lists.Show.self,
+            Lists.New.self,
+            Lists.Delete.self,
+            Lists.Clean.self,
+            Lists.Rename.self,
+        ],
+        defaultSubcommand: Lists.Show.self
+    )
 
-    func run() {
-        reminders.showLists(outputFormat: format)
+    struct Show: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            abstract: "Print the name of lists")
+        @Option(
+            name: .shortAndLong,
+            help: "Output format: plain, table, json, tsv, or quiet")
+        var format: OutputFormat = .plain
+
+        func run() {
+            reminders.showLists(outputFormat: format)
+        }
+    }
+
+    struct New: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            abstract: "Create a new list")
+
+        @Argument(
+            help: "The name of the new list")
+        var listName: String
+
+        @Option(
+            name: .shortAndLong,
+            help: "The name of the source of the list, if all your lists use the same source it will default to that")
+        var source: String?
+
+        func run() {
+            reminders.newList(with: self.listName, source: self.source)
+        }
+    }
+
+    struct Delete: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            abstract: "Delete a list")
+
+        @Argument(
+            help: "The name of the list to delete, see 'lists' for names",
+            completion: .custom(listNameCompletion))
+        var listName: String
+
+        @Flag(
+            name: .shortAndLong,
+            help: "Skip confirmation prompt")
+        var force = false
+
+        @Flag(
+            help: "Delete the list even if it has items")
+        var deleteItems = false
+
+        func run() {
+            reminders.deleteList(withName: self.listName, force: self.force, deleteItems: self.deleteItems)
+        }
+    }
+
+    struct Clean: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            abstract: "Delete all empty lists")
+
+        @Flag(
+            name: .shortAndLong,
+            help: "Skip confirmation prompt")
+        var force = false
+
+        @Flag(
+            name: [.customShort("n"), .customLong("dry-run")],
+            help: "Preview the action without making changes")
+        var dryRun = false
+
+        func run() {
+            reminders.purgeLists(force: force, dryRun: dryRun)
+        }
+    }
+
+    struct Rename: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            abstract: "Rename a list")
+
+        @Argument(
+            help: "The current name of the list",
+            completion: .custom(listNameCompletion))
+        var listName: String
+
+        @Argument(
+            help: "The new name for the list")
+        var newName: String
+
+        func run() {
+            reminders.renameList(oldName: self.listName, newName: self.newName)
+        }
     }
 }
 
-private struct ShowAll: ParsableCommand {
+private struct Show: ParsableCommand {
     static let configuration = CommandConfiguration(
-        abstract: "Print all reminders")
+        abstract: "Print reminders, optionally filtered by list")
+
+    @Argument(
+        help: "The list to print items from, see 'lists' for names. Omit to show all reminders",
+        completion: .custom(listNameCompletion))
+    var listName: String?
 
     @Option(
         name: .long,
@@ -62,6 +159,10 @@ private struct ShowAll: ParsableCommand {
             throw ValidationError(
                 "Cannot specify both --show-completed and --only-completed")
         }
+        if self.filter != nil && self.listName != nil {
+            throw ValidationError(
+                "Cannot use --filter with a specific list")
+        }
         if self.filter != nil && (self.onlyCompleted || self.includeCompleted) {
             throw ValidationError(
                 "Cannot use --filter with --only-completed or --include-completed")
@@ -69,84 +170,36 @@ private struct ShowAll: ParsableCommand {
     }
 
     func run() {
-        var displayOptions = DisplayOptions.incomplete
-        if self.filter != nil {
-            displayOptions = .all
-        } else if self.onlyCompleted {
-            displayOptions = .complete
-        } else if self.includeCompleted {
-            displayOptions = .all
-        }
-
         let resolvedSortOrder = self.sortOrder ?? sort.defaultOrder
 
-        reminders.showAllReminders(
-            dueOn: self.dueDate, includeOverdue: self.includeOverdue,
-            displayOptions: displayOptions, outputFormat: format,
-            filter: self.filter,
-            sort: sort, sortOrder: resolvedSortOrder)
-    }
-}
+        if let listName = self.listName {
+            var displayOptions = DisplayOptions.incomplete
+            if self.onlyCompleted {
+                displayOptions = .complete
+            } else if self.includeCompleted {
+                displayOptions = .all
+            }
 
-private struct Show: ParsableCommand {
-    static let configuration = CommandConfiguration(
-        abstract: "Print the items on the given list")
+            reminders.showListItems(
+                withName: listName, dueOn: self.dueDate, includeOverdue: self.includeOverdue,
+                displayOptions: displayOptions, outputFormat: format,
+                sort: sort, sortOrder: resolvedSortOrder)
+        } else {
+            var displayOptions = DisplayOptions.incomplete
+            if self.filter != nil {
+                displayOptions = .all
+            } else if self.onlyCompleted {
+                displayOptions = .complete
+            } else if self.includeCompleted {
+                displayOptions = .all
+            }
 
-    @Argument(
-        help: "The list to print items from, see 'show-lists' for names",
-        completion: .custom(listNameCompletion))
-    var listName: String
-
-    @Flag(help: "Show completed items only")
-    var onlyCompleted = false
-
-    @Flag(help: "Include completed items in output")
-    var includeCompleted = false
-
-    @Flag(help: "When using --due-date, also include items due before the due date")
-    var includeOverdue = false
-
-    @Option(
-        name: .shortAndLong,
-        help: "Show the reminders in a specific order, one of: \(Sort.commaSeparatedCases)")
-    var sort: Sort = .none
-
-    @Option(
-        name: [.customShort("o"), .long],
-        help: "How the sort order should be applied, one of: \(CustomSortOrder.commaSeparatedCases)")
-    var sortOrder: CustomSortOrder?
-
-    @Option(
-        name: .shortAndLong,
-        help: "Show only reminders due on this date")
-    var dueDate: DateComponents?
-
-    @Option(
-        name: .shortAndLong,
-        help: "Output format: plain, table, json, tsv, or quiet")
-    var format: OutputFormat = .plain
-
-    func validate() throws {
-        if self.onlyCompleted && self.includeCompleted {
-            throw ValidationError(
-                "Cannot specify both --show-completed and --only-completed")
+            reminders.showAllReminders(
+                dueOn: self.dueDate, includeOverdue: self.includeOverdue,
+                displayOptions: displayOptions, outputFormat: format,
+                filter: self.filter,
+                sort: sort, sortOrder: resolvedSortOrder)
         }
-    }
-
-    func run() {
-        var displayOptions = DisplayOptions.incomplete
-        if self.onlyCompleted {
-            displayOptions = .complete
-        } else if self.includeCompleted {
-            displayOptions = .all
-        }
-
-        let resolvedSortOrder = self.sortOrder ?? sort.defaultOrder
-
-        reminders.showListItems(
-            withName: self.listName, dueOn: self.dueDate, includeOverdue: self.includeOverdue,
-            displayOptions: displayOptions, outputFormat: format,
-            sort: sort, sortOrder: resolvedSortOrder)
     }
 }
 
@@ -155,7 +208,7 @@ private struct Add: ParsableCommand {
         abstract: "Add a reminder to a list")
 
     @Argument(
-        help: "The list to add to, see 'show-lists' for names",
+        help: "The list to add to, see 'lists' for names",
         completion: .custom(listNameCompletion))
     var listName: String
 
@@ -210,7 +263,7 @@ private struct Complete: ParsableCommand {
         abstract: "Complete one or more reminders")
 
     @Argument(
-        help: "The list to complete a reminder on, see 'show-lists' for names",
+        help: "The list to complete a reminder on, see 'lists' for names",
         completion: .custom(listNameCompletion))
     var listName: String
 
@@ -238,7 +291,7 @@ private struct Uncomplete: ParsableCommand {
         abstract: "Uncomplete one or more reminders")
 
     @Argument(
-        help: "The list to uncomplete a reminder on, see 'show-lists' for names",
+        help: "The list to uncomplete a reminder on, see 'lists' for names",
         completion: .custom(listNameCompletion))
     var listName: String
 
@@ -261,7 +314,7 @@ private struct Delete: ParsableCommand {
         abstract: "Delete a reminder")
 
     @Argument(
-        help: "The list to delete a reminder on, see 'show-lists' for names",
+        help: "The list to delete a reminder on, see 'lists' for names",
         completion: .custom(listNameCompletion))
     var listName: String
 
@@ -313,7 +366,7 @@ private struct Edit: ParsableCommand {
         abstract: "Edit the text of a reminder")
 
     @Argument(
-        help: "The list to edit a reminder on, see 'show-lists' for names",
+        help: "The list to edit a reminder on, see 'lists' for names",
         completion: .custom(listNameCompletion))
     var listName: String
 
@@ -408,7 +461,7 @@ private struct Move: ParsableCommand {
         abstract: "Move a reminder to a different list")
 
     @Argument(
-        help: "The list to move a reminder from, see 'show-lists' for names",
+        help: "The list to move a reminder from, see 'lists' for names",
         completion: .custom(listNameCompletion))
     var fromListName: String
 
@@ -417,7 +470,7 @@ private struct Move: ParsableCommand {
     var index: String
 
     @Argument(
-        help: "The list to move the reminder to, see 'show-lists' for names",
+        help: "The list to move the reminder to, see 'lists' for names",
         completion: .custom(listNameCompletion))
     var toListName: String
 
@@ -460,112 +513,46 @@ private struct Move: ParsableCommand {
     }
 }
 
-private struct NewList: ParsableCommand {
+
+private struct Auth: ParsableCommand {
     static let configuration = CommandConfiguration(
-        abstract: "Create a new list")
+        abstract: "Manage Reminders authorization",
+        subcommands: [
+            Auth.Status.self,
+            Auth.Request.self,
+        ],
+        defaultSubcommand: Auth.Status.self
+    )
 
-    @Argument(
-        help: "The name of the new list")
-    var listName: String
+    struct Status: ParsableCommand, SkipsAccessRequest {
+        static let configuration = CommandConfiguration(
+            abstract: "Show Reminders authorization status")
 
-    @Option(
-        name: .shortAndLong,
-        help: "The name of the source of the list, if all your lists use the same source it will default to that")
-    var source: String?
-
-    func run() {
-        reminders.newList(with: self.listName, source: self.source)
-    }
-}
-
-private struct DeleteList: ParsableCommand {
-    static let configuration = CommandConfiguration(
-        abstract: "Delete a list")
-
-    @Argument(
-        help: "The name of the list to delete, see 'show-lists' for names",
-        completion: .custom(listNameCompletion))
-    var listName: String
-
-    @Flag(
-        name: .shortAndLong,
-        help: "Skip confirmation prompt")
-    var force = false
-
-    @Flag(
-        help: "Delete the list even if it has items")
-    var deleteItems = false
-
-    func run() {
-        reminders.deleteList(withName: self.listName, force: self.force, deleteItems: self.deleteItems)
-    }
-}
-
-private struct CleanLists: ParsableCommand {
-    static let configuration = CommandConfiguration(
-        abstract: "Delete all empty lists")
-
-    @Flag(
-        name: .shortAndLong,
-        help: "Skip confirmation prompt")
-    var force = false
-
-    @Flag(
-        name: [.customShort("n"), .customLong("dry-run")],
-        help: "Preview the action without making changes")
-    var dryRun = false
-
-    func run() {
-        reminders.purgeLists(force: force, dryRun: dryRun)
-    }
-}
-
-private struct RenameList: ParsableCommand {
-    static let configuration = CommandConfiguration(
-        abstract: "Rename a list")
-
-    @Argument(
-        help: "The current name of the list",
-        completion: .custom(listNameCompletion))
-    var listName: String
-
-    @Argument(
-        help: "The new name for the list")
-    var newName: String
-
-    func run() {
-        reminders.renameList(oldName: self.listName, newName: self.newName)
-    }
-}
-
-private struct Status: ParsableCommand, SkipsAccessRequest {
-    static let configuration = CommandConfiguration(
-        abstract: "Show Reminders authorization status")
-
-    func run() {
-        printAuthorizationStatus()
-    }
-}
-
-private struct Authorize: ParsableCommand, SkipsAccessRequest {
-    static let configuration = CommandConfiguration(
-        abstract: "Request Reminders access")
-
-    func run() {
-        let current = EKEventStore.authorizationStatus(for: .reminder)
-        if current == .notDetermined {
-            let (granted, error) = Reminders.requestAccess()
+        func run() {
             printAuthorizationStatus()
-            if !granted {
-                if let error = error {
-                    print("error: \(error.localizedDescription)")
+        }
+    }
+
+    struct Request: ParsableCommand, SkipsAccessRequest {
+        static let configuration = CommandConfiguration(
+            abstract: "Request Reminders access")
+
+        func run() {
+            let current = EKEventStore.authorizationStatus(for: .reminder)
+            if current == .notDetermined {
+                let (granted, error) = Reminders.requestAccess()
+                printAuthorizationStatus()
+                if !granted {
+                    if let error = error {
+                        print("error: \(error.localizedDescription)")
+                    }
+                    Darwin.exit(1)
                 }
-                Darwin.exit(1)
-            }
-        } else {
-            printAuthorizationStatus()
-            if current == .denied || current == .restricted {
-                Darwin.exit(1)
+            } else {
+                printAuthorizationStatus()
+                if current == .denied || current == .restricted {
+                    Darwin.exit(1)
+                }
             }
         }
     }
@@ -599,20 +586,14 @@ public struct CLI: ParsableCommand {
         abstract: "Interact with macOS Reminders from the command line",
         subcommands: [
             Add.self,
-            Authorize.self,
+            Auth.self,
             Complete.self,
             Uncomplete.self,
             Delete.self,
-            DeleteList.self,
             Edit.self,
+            Lists.self,
             Move.self,
-            NewList.self,
-            CleanLists.self,
-            RenameList.self,
             Show.self,
-            ShowAll.self,
-            ShowLists.self,
-            Status.self,
         ]
     )
 

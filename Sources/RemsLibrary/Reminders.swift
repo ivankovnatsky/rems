@@ -129,10 +129,10 @@ public final class Reminders {
             }
 
             var matchingReminders = [(EKReminder, Int?, String)]()
-            for (i, reminder) in filtered.enumerated() {
+            for reminder in filtered {
                 let listName = reminder.calendar.title
                 guard let dueDate = dueDate?.date else {
-                    matchingReminders.append((reminder, i, listName))
+                    matchingReminders.append((reminder, nil, listName))
                     continue
                 }
 
@@ -146,7 +146,7 @@ public final class Reminders {
                     reminderDueDate, to: dueDate, toGranularity: .day) == .orderedAscending
 
                 if sameDay || (includeOverdue && earlierDay) {
-                    matchingReminders.append((reminder, i, listName))
+                    matchingReminders.append((reminder, nil, listName))
                 }
             }
 

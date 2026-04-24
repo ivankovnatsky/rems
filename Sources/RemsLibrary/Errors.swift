@@ -13,7 +13,7 @@ public enum RemsError: LocalizedError, Equatable {
     public var errorDescription: String? {
         switch self {
         case .accessDenied:
-            return "Reminders access denied. Run `rems authorize` to request access, then allow in System Settings > Privacy & Security > Reminders."
+            return "Reminders access denied. Run `rems auth request` to request access, then allow in System Settings > Privacy & Security > Reminders."
         case .writeOnlyAccess:
             return "Reminders access is write-only. Switch to Full Access in System Settings > Privacy & Security > Reminders."
         case .listNotFound(let name):
