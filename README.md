@@ -37,7 +37,7 @@ cp .build/release/rems /usr/local/bin/
 
 ```console
 # Show all lists
-rems lists
+rems lists show
 
 # Show reminders on a list
 rems show MyList
@@ -102,7 +102,7 @@ rems lists clean
 rems lists clean --dry-run
 
 # Check authorization status
-rems auth
+rems auth status
 
 # Request Reminders access
 rems auth request
