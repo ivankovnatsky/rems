@@ -37,7 +37,7 @@ cp .build/release/rems /usr/local/bin/
 
 ```console
 # Show all lists
-rems show-lists
+rems lists
 
 # Show reminders on a list
 rems show MyList
@@ -46,15 +46,15 @@ rems show MyList
 rems show MyList --format table --sort urgency
 
 # Show all reminders across lists
-rems show-all
+rems show
 
 # Show all reminders in a cross-list table
-rems show-all --format table --sort urgency
+rems show --format table --sort urgency
 
 # Filter reminders (today, tomorrow, week, overdue, upcoming, completed, all)
-rems show-all --filter today
-rems show-all --filter overdue
-rems show-all --filter upcoming
+rems show --filter today
+rems show --filter overdue
+rems show --filter upcoming
 
 # Add a reminder
 rems add MyList Buy milk --due-date tomorrow --priority high
@@ -93,19 +93,19 @@ rems move SourceList 0 TargetList
 rems move SourceList 0 NewList --create
 
 # List management
-rems new-list MyNewList
-rems rename-list OldName NewName
-rems delete-list EmptyList --force
+rems lists new MyNewList
+rems lists rename OldName NewName
+rems lists delete EmptyList --force
 
 # Clean up all empty lists
-rems clean-lists
-rems clean-lists --dry-run
+rems lists clean
+rems lists clean --dry-run
 
 # Check authorization status
-rems status
+rems auth
 
 # Request Reminders access
-rems authorize
+rems auth request
 
 # JSON output
 rems show MyList --format json
@@ -114,10 +114,10 @@ rems show MyList --format json
 rems show MyList --format table
 
 # TSV output for scripting
-rems show-all --format tsv
+rems show --format tsv
 
 # Quiet mode (counts only)
-rems show-all --format quiet
+rems show --format quiet
 ```
 
 ## Credits
