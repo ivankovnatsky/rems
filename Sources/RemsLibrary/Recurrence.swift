@@ -12,6 +12,8 @@ public enum Recurrence: String, ExpressibleByArgument, CaseIterable {
     case every6Months = "every-6-months"
     case yearly
 
+    public static let commaSeparatedCases = Self.allCases.map { $0.rawValue }.joined(separator: ", ")
+
     var recurrenceRule: EKRecurrenceRule {
         switch self {
         case .daily:

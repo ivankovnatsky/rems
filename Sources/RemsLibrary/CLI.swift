@@ -15,8 +15,7 @@ private struct Lists: ParsableCommand {
             Lists.Delete.self,
             Lists.Clean.self,
             Lists.Rename.self,
-        ],
-        defaultSubcommand: Lists.Show.self
+        ]
     )
 
     struct Show: ParsableCommand {
@@ -239,7 +238,7 @@ private struct Add: ParsableCommand {
 
     @Option(
         name: [.customLong("repeat"), .customShort("r")],
-        help: "The recurrence interval, one of: daily, weekly, monthly, yearly")
+        help: "The recurrence interval, one of: \(Recurrence.commaSeparatedCases)")
     var recurrence: Recurrence?
 
     @Flag(name: .shortAndLong, help: "Create the list if it doesn't exist")
@@ -375,7 +374,7 @@ private struct Edit: ParsableCommand {
     var index: String
 
     @Option(
-        name: .shortAndLong,
+        name: .long,
         help: "The notes to set on the reminder, overwriting previous notes")
     var notes: String?
 
@@ -391,7 +390,7 @@ private struct Edit: ParsableCommand {
 
     @Option(
         name: [.customLong("repeat"), .customShort("r")],
-        help: "The recurrence interval, one of: \(Recurrence.allCases.map(\.rawValue).joined(separator: ", "))")
+        help: "The recurrence interval, one of: \(Recurrence.commaSeparatedCases)")
     var recurrence: Recurrence?
 
     @Option(
@@ -520,8 +519,7 @@ private struct Auth: ParsableCommand {
         subcommands: [
             Auth.Status.self,
             Auth.Request.self,
-        ],
-        defaultSubcommand: Auth.Status.self
+        ]
     )
 
     struct Status: ParsableCommand, SkipsAccessRequest {
